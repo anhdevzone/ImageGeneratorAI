@@ -4,22 +4,82 @@ import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Checkbox, Form, Input, Flex } from "antd";
 import { MdOutlineEmail } from "react-icons/md";
 import { AppContext } from "../context/AppContext";
+import axios from "axios";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 const Login = () => {
+  const navigate = useNavigate();
   const [state, setState] = useState("Login");
-  const {setShowLogin} = useContext(AppContext)
+  const { setShowLogin, backendUrl, setToken, setUser } =
+    useContext(AppContext);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const onFinish = async (values) => {
+    try {
+      if (state === "Login") {
+        const { data } = await axios.post(`${backendUrl}/api/user/login`, {
+          email: values.email,
+          password: values.password,
+        });
+        if (data.success) {
+          setToken(data.token);
+          setUser(data.user);
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("email", email);
+          setShowLogin(false);
+          toast.success("Đăng nhập thành công");
+          navigate("/");
+        } else {
+          toast.error(data.message);
+        }
+      } else {
+        const password = values.password;
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasLowerCase = /[a-z]/.test(password);
+        const hasNumbers = /\d/.test(password);
+
+        if (password.length < 6) {
+          toast.error("Mật khẩu phải lớn hơn 6 ký tự");
+          return;
+        }
+        if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+          let errorMessage = "Mật khẩu phải có ít nhất ";
+          if (!hasUpperCase) errorMessage += "1 chữ in hoa, ";
+          if (!hasLowerCase) errorMessage += "1 chữ thường, ";
+          if (!hasNumbers) errorMessage += "1 chữ số, ";
+          toast.error(errorMessage.slice(0, -2));
+          return;
+        }
+
+        const { data } = await axios.post(`${backendUrl}/api/user/register`, {
+          name: values.username,
+          email: values.email,
+          password: values.password,
+        });
+        if (data.success) {
+          toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
+          setState("Login");
+        } else {
+          toast.error(data.message);
+        }
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
-        document.body.style.overflow = "unset"
-    }
-  }, [])
-  const onFinish = (values) => {
-    console.log("Received values of form: ", values);
-  };
+      document.body.style.overflow = "unset";
+    };
+  }, []);
   const [passwordVisible, setPasswordVisible] = React.useState(false);
   return (
     <div className="absolute top-0 left-0 bottom-0 right-0 z-10 backdrop-blur-sm bg-black/30 flex justify-center items-center">
       <Form
+        onFinish={onFinish}
         className="relative bg-white !p-10 rounded-xl text-slate-500"
         name="login"
         initialValues={{
@@ -28,7 +88,6 @@ const Login = () => {
         style={{
           maxWidth: 500,
         }}
-        onFinish={onFinish}
       >
         <h1 className="text-center text-2xl text-neutral-700 font-medium">
           {state === "Login" ? "Đăng nhập" : state}
@@ -46,7 +105,12 @@ const Login = () => {
               },
             ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Username" />
+            <Input
+              onChange={(e) => setName(e.target.value)}
+              value={name}
+              prefix={<UserOutlined />}
+              placeholder="Username"
+            />
           </Form.Item>
         )}
 
@@ -59,7 +123,12 @@ const Login = () => {
             },
           ]}
         >
-          <Input prefix={<MdOutlineEmail />} placeholder="Email" />
+          <Input
+            onChange={(e) => setEmail(e.target.value)}
+            value={email}
+            prefix={<MdOutlineEmail />}
+            placeholder="Email"
+          />
         </Form.Item>
         <Form.Item
           name="password"
@@ -71,6 +140,8 @@ const Login = () => {
           ]}
         >
           <Input.Password
+            onChange={(e) => setPassword(e.target.value)}
+            value={password}
             prefix={<LockOutlined />}
             placeholder="Password"
             visibilityToggle={{
@@ -92,14 +163,15 @@ const Login = () => {
           <Button className="!mb-3" block type="primary" htmlType="submit">
             {state === "Login" ? "Đăng nhập" : "Đăng ký"}
           </Button>
-          Hoặc {" "}
+          Hoặc{" "}
           {state === "Login" ? (
             <a onClick={() => setState("Signup")}>Đăng ký ngay!</a>
           ) : (
             <a onClick={() => setState("Login")}>Đăng nhập!</a>
           )}
         </Form.Item>
-        <img onClick={() => setShowLogin(false)}
+        <img
+          onClick={() => setShowLogin(false)}
           src={assets.cross_icon}
           alt=""
           className="absolute top-5 right-5 cursor-pointer"

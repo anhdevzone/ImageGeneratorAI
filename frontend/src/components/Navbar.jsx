@@ -9,30 +9,20 @@ import { FiLogOut } from "react-icons/fi";
 import { MdStars } from "react-icons/md";
 import { AppContext } from "../context/AppContext";
 
-const handleButtonClick = (e) => {
-  message.info("Click on left button.");
-  console.log("click left button", e);
-};
-const handleMenuClick = (e) => {
-  message.info("Click on menu item.");
-  console.log("click", e);
-};
-const items = [
-  {
-    label: "Đăng xuất",
-    key: "1",
-    icon: <FiLogOut />,
-  },
-];
-
-const menuProps = {
-  items,
-  onClick: handleMenuClick,
-};
 const Navbar = () => {
-  const { user, setShowLogin } = useContext(AppContext);
+  const { user, setShowLogin, logout, credit } = useContext(AppContext);
   const { styles } = useStyle();
   const navigate = useNavigate();
+  const menuProps = {
+    items: [
+      {
+        key: "logout",
+        label: "Đăng xuất",
+        onClick: () => logout(),
+        icon: <FiLogOut />,
+      },
+    ],
+  };
   return (
     <div className="flex items-center justify-between py-4">
       <Link to="/">
@@ -53,7 +43,7 @@ const Navbar = () => {
                 size="large"
               >
                 <MdStars className="text-white text-base z-50" />
-                Tín dụng còn lại :50
+                Tín dụng còn lại : {credit}
               </Button>
             </Space>
           </ConfigProvider>
@@ -61,9 +51,8 @@ const Navbar = () => {
             menu={menuProps}
             placement="bottom"
             icon={<UserOutlined />}
-            onClick={handleButtonClick}
           >
-            <p className="max-sm:hidden">Hi, DevZone</p>
+            <p className="max-sm:hidden">Hi, {user.name}</p>
           </Dropdown.Button>
         </div>
       ) : (
@@ -80,7 +69,12 @@ const Navbar = () => {
             }}
           >
             <Space>
-              <Button type="primary" size="large" onClick={() => setShowLogin(true)} icon={<AntDesignOutlined />}>
+              <Button
+                type="primary"
+                size="large"
+                onClick={() => setShowLogin(true)}
+                icon={<AntDesignOutlined />}
+              >
                 Đăng Nhập
               </Button>
             </Space>
