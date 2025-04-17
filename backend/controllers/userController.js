@@ -1,7 +1,9 @@
 import userModel from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import Razorpay from "razorpay";
 
+import transactionModel from "../models/transactionModel.js";
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -63,4 +65,91 @@ const userCredits = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
-export { registerUser, loginUser, userCredits };
+
+const razorpayInstance = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+const paymenRazorpay = async (req, res) => {
+  try {
+    const { userID, planID } = req.body;
+    const userData = await userModel.findById(userID);
+    if (!userID || !planID) {
+      return res.json({ success: false, message: "Thiếu thông tin" });
+    }
+
+    let credits, plan, amount, date;
+    switch (planID) {
+      case "Cơ bản":
+        plan = "Cơ bản";
+        credits = 100;
+        amount = 10;
+        break;
+      case "Ưu tiên":
+        plan = "Ưu tiên";
+        credits = 500;
+        amount = 50;
+        break;
+      case "Cao cấp":
+        plan = "Cao cấp";
+        credits = 5000;
+        amount = 500;
+        break;
+      default:
+        return res.json({ success: false, message: "Chưa chọn gói dùng" });
+    }
+    date = Date.now();
+
+    const transactionData = {
+      userID,
+      plan,
+      amount,
+      credits,
+      date,
+    };
+
+    const newTransaction = await transactionModel.create(transactionData);
+    const options = {
+      amount: amount * 100, // Amount in paise
+      currency: "INR", // Explicitly set currency to INR
+      receipt: newTransaction._id,
+    };
+
+    await razorpayInstance.orders.create(options, (error, order) => {
+      if (error) {
+        return res.json({ success: false, message: error });
+      }
+      res.json({ success: true, order });
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+const verifyRazorpay = async (req, res) => {
+  try {
+    const { razorpay_order_id } = req.body;
+    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
+    if (orderInfo.status === "paid") {
+      const transactionData = await transactionModel.findById(
+        orderInfo.receipt
+      );
+      if (transactionData.payment) {
+        return res.json({ success: false, message: "Thanh toán thất bại" });
+      }
+      const userData = await userModel.findById(transactionData.userID);
+      const creditBalance = userData.creditBalance + transactionData.credits;
+      await userModel.findByIdAndUpdate(userData._id, { creditBalance });
+      await transactionModel.findByIdAndUpdate(transactionData._id, {
+        payment: true,
+      });
+      return res.json({ success: true, message: "Thanh toán thành công" });
+    } else {
+      return res.json({ success: false, message: "Thanh toán thất bại" });
+    }
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
+export { registerUser, loginUser, userCredits, paymenRazorpay, verifyRazorpay };

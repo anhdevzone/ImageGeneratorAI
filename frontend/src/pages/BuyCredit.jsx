@@ -2,49 +2,100 @@ import React, { useContext, useEffect, useState } from "react";
 import { assets, plans } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
 import { Button, Modal, message } from "antd";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
 const BuyCredit = () => {
-  const { user } = useContext(AppContext);
+  const { user, backendUrl, loadCreditsData, token, setShowLogin } =
+    useContext(AppContext);
   const [open, setOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [selectedPlan, setSelectedPlan] = useState(null);
 
-  useEffect(() => {
-    const storedEmail = localStorage.getItem("email");
-    if (storedEmail) {
-      setEmail(storedEmail);
-    }
-  }, []);
+  // useEffect(() => {
+  //   const storedEmail = localStorage.getItem("email");
+  //   if (storedEmail) {
+  //     setEmail(storedEmail);
+  //   }
+  // }, []);
 
-  const showModal = (plan) => {
-    setSelectedPlan(plan);
-    setOpen(true);
-  };
+  // const showModal = (plan) => {
+  //   setSelectedPlan(plan);
+  //   setOpen(true);
+  // };
 
-  const handleOk = () => {
-    setOpen(false);
-  };
+  // const handleOk = () => {
+  //   setOpen(false);
+  // };
 
-  const handleCancel = () => {
-    console.log("Clicked cancel button");
-    setOpen(false);
+  // const handleCancel = () => {
+  //   console.log("Clicked cancel button");
+  //   setOpen(false);
+  // };
+  // const handleCopyMessage = () => {
+  //   if (selectedPlan) {
+  //     const copyText = `Chào Admin, tôi muốn mua gói ${
+  //       selectedPlan.id
+  //     } với giá ${selectedPlan.price.toLocaleString(
+  //       "vi-VN"
+  //     )} VNĐ VNĐ. Email đăng ký tài khoản của tôi: ${email}`;
+  //     navigator.clipboard
+  //       .writeText(copyText) // Sao chép vào clipboard
+  //       .then(() => {
+  //         message.success("Đã sao chép tin nhắn!"); // Hiển thị thông báo thành công
+  //       })
+  //       .catch(() => {
+  //         message.error("Không thể sao chép, vui lòng thử lại!");
+  //       });
+  //   }
+  // };
+
+  const navigate = useNavigate();
+
+  const initPay = async (order) => {
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+      amount: order.amount,
+      currency: "INR", // Explicitly set currency to INR
+      name: "Credits Payment",
+      description: "Credits Payment",
+      order_id: order.id,
+      receipt: order.receipt,
+      handler: async (response) => {
+        try {
+          const { data } = await axios.post(
+            backendUrl + "/api/user/verypay",
+            response,
+            { headers: { token } }
+          );
+          if (data.success) {
+            loadCreditsData();
+            navigate("/");
+            toast.success("Thanh toán thành công");
+          }
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    };
+    const rzp = new window.Razorpay(options);
+    rzp.open();
   };
-  const handleCopyMessage = () => {
-    if (selectedPlan) {
-      const copyText = `Chào Admin, tôi muốn mua gói ${
-        selectedPlan.id
-      } với giá ${selectedPlan.price.toLocaleString(
-        "vi-VN"
-      )} VNĐ VNĐ. Email đăng ký tài khoản của tôi: ${email}`;
-      navigator.clipboard
-        .writeText(copyText) // Sao chép vào clipboard
-        .then(() => {
-          message.success("Đã sao chép tin nhắn!"); // Hiển thị thông báo thành công
-        })
-        .catch(() => {
-          message.error("Không thể sao chép, vui lòng thử lại!");
-        });
-    }
+  const paymentRazorpay = async (planID) => {
+    try {
+      if (!user) {
+        setShowLogin(true);
+      }
+      const { data } = await axios.post(
+        backendUrl + "/api/user/pay",
+        { planID },
+        { headers: { token } }
+      );
+      if (data.success) {
+        initPay(data.order);
+      }
+    } catch (error) {}
   };
   return (
     <div className="min-h-[80vh] text-center pt-14 mb-10">
@@ -71,7 +122,8 @@ const BuyCredit = () => {
                 / {item.credits} Tín dụng
               </p>
               <button
-                onClick={() => showModal(item)}
+                // onClick={() => showModal(item)}
+                onClick={() => paymentRazorpay(item.id)}
                 className="w-full bg-gray-800 text-white mt-8 text-sm rounded-md py-2.5 min-w-52 cursor-pointer"
               >
                 {user ? "Nâng Cấp" : "Bắt đầu"}
@@ -80,7 +132,7 @@ const BuyCredit = () => {
           );
         })}
       </div>
-      <Modal
+      {/* <Modal
         title="Mua tín dụng tại đây"
         open={open}
         confirmLoading={confirmLoading}
@@ -127,7 +179,7 @@ const BuyCredit = () => {
             />
           </>
         )}
-      </Modal>
+      </Modal> */}
     </div>
   );
 };
