@@ -4,6 +4,7 @@ import Steps from "../components/Steps";
 import Description from "../components/Description";
 import Testimonials from "../components/Testimonials";
 import { assets } from "../assets/assets";
+import GeneratedImages from "../components/GeneratedImages";
 
 const Home = () => {
   return (
@@ -16,10 +17,7 @@ const Home = () => {
         <h1 className="text-3xl sm:text-4xl font-semibold">
           Xem sự kỳ diệu. Thử ngay bây giờ
         </h1>
-        <button className=" text-white bg-black w-auto mt-8 px-12 py-4 flex items-center gap-2 rounded-full text-xl">
-          Tạo ảnh bằng AI
-          <img className="h-8" src={assets.star_group} alt="" />
-        </button>
+          <GeneratedImages />
       </div>
     </div>
   );

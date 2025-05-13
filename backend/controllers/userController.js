@@ -2,8 +2,9 @@ import userModel from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import Razorpay from "razorpay";
-
 import transactionModel from "../models/transactionModel.js";
+import planModel from "../models/planModel.js";
+
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -152,4 +153,26 @@ const verifyRazorpay = async (req, res) => {
     return res.json({ success: false, message: error.message });
   }
 };
+
+export const getActivePlans = async (req, res) => {
+  try {
+    const plans = await planModel
+      .find({
+        isActive: true,
+        $or: [
+          { isPromotion: false },
+          {
+            isPromotion: true,
+            promotionEndDate: { $gt: new Date() },
+          },
+        ],
+      })
+      .sort({ price: 1 });
+
+    res.json({ success: true, plans });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export { registerUser, loginUser, userCredits, paymenRazorpay, verifyRazorpay };

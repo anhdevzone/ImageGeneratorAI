@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { assets, plans } from "../assets/assets";
+import { assets } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
 import { Button, Modal, message } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -12,46 +12,28 @@ const BuyCredit = () => {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [selectedPlan, setSelectedPlan] = useState(null);
-
-  // useEffect(() => {
-  //   const storedEmail = localStorage.getItem("email");
-  //   if (storedEmail) {
-  //     setEmail(storedEmail);
-  //   }
-  // }, []);
-
-  // const showModal = (plan) => {
-  //   setSelectedPlan(plan);
-  //   setOpen(true);
-  // };
-
-  // const handleOk = () => {
-  //   setOpen(false);
-  // };
-
-  // const handleCancel = () => {
-  //   console.log("Clicked cancel button");
-  //   setOpen(false);
-  // };
-  // const handleCopyMessage = () => {
-  //   if (selectedPlan) {
-  //     const copyText = `Chào Admin, tôi muốn mua gói ${
-  //       selectedPlan.id
-  //     } với giá ${selectedPlan.price.toLocaleString(
-  //       "vi-VN"
-  //     )} VNĐ VNĐ. Email đăng ký tài khoản của tôi: ${email}`;
-  //     navigator.clipboard
-  //       .writeText(copyText) // Sao chép vào clipboard
-  //       .then(() => {
-  //         message.success("Đã sao chép tin nhắn!"); // Hiển thị thông báo thành công
-  //       })
-  //       .catch(() => {
-  //         message.error("Không thể sao chép, vui lòng thử lại!");
-  //       });
-  //   }
-  // };
-
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const { data } = await axios.get(backendUrl + "/api/user/plans");
+        if (data.success) {
+          setPlans(data.plans);
+        } else {
+          toast.error("Failed to fetch plans");
+        }
+        setLoading(false);
+      } catch (error) {
+        toast.error("Error fetching plans");
+        setLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, [backendUrl]);
 
   const initPay = async (order) => {
     const options = {
@@ -104,33 +86,43 @@ const BuyCredit = () => {
       </button>
       <h1 className="text-center text-3xl font-medium mb-6 sm:mb-10">
         Nâng cấp kế hoạch của bạn
-      </h1>
+      </h1>{" "}
       <div className="flex flex-wrap justify-center gap-6 text-left">
-        {plans.map((item, index) => {
-          return (
-            <div
-              key={index}
-              className="bg-white drop-shadow-sm border rounded-lg py-12 px-8 text-gray-600 hover:scale-105 transition-all duration-500"
-            >
-              <img src={assets.lock_icon} alt="" />
-              <p className="mt-3 mb-1 font-semibold">{item.id}</p>
-              <p className="text-sm">{item.desc}</p>
-              <p className="mt-6">
-                <span className="text-3xl font-semibold">
-                  {item.price.toLocaleString("vi-VN")} VNĐ
-                </span>
-                / {item.credits} Tín dụng
-              </p>
-              <button
-                // onClick={() => showModal(item)}
-                onClick={() => paymentRazorpay(item.id)}
-                className="w-full bg-gray-800 text-white mt-8 text-sm rounded-md py-2.5 min-w-52 cursor-pointer"
+        {loading ? (
+          <div>Loading plans...</div>
+        ) : (
+          plans.map((item, index) => {
+            return (
+              <div
+                key={index}
+                className="bg-white drop-shadow-sm border rounded-lg py-12 px-8 text-gray-600 hover:scale-105 transition-all duration-500"
               >
-                {user ? "Nâng Cấp" : "Bắt đầu"}
-              </button>
-            </div>
-          );
-        })}
+                <img src={assets.lock_icon} alt="" />
+                <p className="mt-3 mb-1 font-semibold">{item.name}</p>
+                <p className="text-sm">{item.description}</p>
+                <p className="mt-6">
+                  <span className="text-3xl font-semibold">
+                    {item.price.toLocaleString("vi-VN")} VNĐ
+                  </span>
+                  / {item.credits} Tín dụng
+                </p>
+                {item.features && (
+                  <ul className="mt-4 list-disc list-inside text-sm">
+                    {item.features.map((feature, idx) => (
+                      <li key={idx}>{feature}</li>
+                    ))}
+                  </ul>
+                )}
+                <button
+                  onClick={() => paymentRazorpay(item.name)}
+                  className="w-full bg-gray-800 text-white mt-8 text-sm rounded-md py-2.5 min-w-52 cursor-pointer"
+                >
+                  {user ? "Nâng Cấp" : "Bắt đầu"}
+                </button>
+              </div>
+            );
+          })
+        )}
       </div>
       {/* <Modal
         title="Mua tín dụng tại đây"

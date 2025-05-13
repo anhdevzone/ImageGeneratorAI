@@ -1,9 +1,11 @@
 import axios from "axios";
 import userModel from "../models/userModel.js";
+import imageGenerationModel from "../models/imageGenerationModel.js";
 import FormData from "form-data";
 
 export const generateImage = async (req, res) => {
   try {
+    const startTime = Date.now();
     const { userID, prompt } = req.body;
     const user = await userModel.findById(userID);
 
@@ -39,9 +41,20 @@ export const generateImage = async (req, res) => {
 
     const base64Image = Buffer.from(data, "binary").toString("base64");
     const resultImage = `data:image/png;base64,${base64Image}`;
-
     await userModel.findByIdAndUpdate(userID, {
       creditBalance: user.creditBalance - 1,
+    }); // Track the image generation with detailed logging
+    const generationLog = await imageGenerationModel.create({
+      userID,
+      prompt,
+      imageUrl: resultImage,
+      creditsUsed: 1,
+      metadata: {
+        model: "clipdrop-v1",
+        processingTime: Date.now() - startTime,
+        userAgent: req.headers["user-agent"],
+        ipAddress: req.ip,
+      },
     });
 
     res.json({
@@ -51,6 +64,20 @@ export const generateImage = async (req, res) => {
       resultImage,
     });
   } catch (error) {
+    // Log the failed generation attempt
+    await imageGenerationModel.create({
+      userID,
+      prompt,
+      status: "failed",
+      metadata: {
+        model: "clipdrop-v1",
+        processingTime: Date.now() - startTime,
+        userAgent: req.headers["user-agent"],
+        ipAddress: req.ip,
+        error: error.message,
+      },
+    });
+
     res.json({ success: false, message: error.message });
   }
 };
